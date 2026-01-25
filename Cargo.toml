@@ -1,0 +1,10 @@
+[package]
+name = "resonate"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+symphonia = { version = "0.5", features = ["mp3", "wav", "flac", "aac"] }
+rubato = "0.14"
+dasp = "0.11"
+rustfft = "6.2.0"

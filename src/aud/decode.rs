@@ -1,5 +1,4 @@
 use std::{io::Cursor};
-use dasp::frame::Channels;
 use rubato::{Resampler, SincFixedIn, SincInterpolationParameters, WindowFunction};
 use symphonia::core::{
     audio::SampleBuffer,
@@ -10,7 +9,8 @@ use symphonia::core::{
     probe::Hint
 };
 
-pub fn ingest(bytes: &'static [u8]) -> Vec<f32> {
+
+pub fn ingest(bytes: &[u8]) -> Vec<f32> {
     let (samples, rate, channels) = decode_audio(bytes);
 
     resample(
@@ -20,29 +20,61 @@ pub fn ingest(bytes: &'static [u8]) -> Vec<f32> {
     )
 }
 
+
 fn resample(input: &[f32], input_rate: u32, output_rate: u32) -> Vec<f32> {
     if input_rate == output_rate {
         return input.to_vec();
     }
 
     let params = SincInterpolationParameters {
-        sinc_len: 256,
+        sinc_len: 128,
         f_cutoff: 0.95,
-        oversampling_factor: 256,
+        oversampling_factor: 64,
         interpolation: rubato::SincInterpolationType::Linear,
         window: WindowFunction::BlackmanHarris2,
     };
+
+    let chunk_size = 1024;
 
     let mut resampler = SincFixedIn::<f32>::new(
         output_rate as f64 / input_rate as f64,
         2.0,
         params,
-        1024,
+        chunk_size.clone(),
         1
     ).unwrap();
 
-    resampler.process(&[input.to_vec()], None).unwrap()[0].clone()
+    process(chunk_size, input, &mut resampler)
 }
+
+fn process(chunk_size: usize, input: &[f32], resampler: &mut SincFixedIn<f32>) -> Vec<f32> {
+    let mut output = Vec::new();
+    let mut position = 0;
+
+    while position + chunk_size <= input.len() {
+        let chunk = vec![input[position.. position+chunk_size].to_vec()];
+        let result = resampler.process(&chunk, None).unwrap();
+
+        output.extend_from_slice(&result[0]);
+        position += chunk_size
+    }
+
+    let remaining = input.len() - position;
+    if remaining > 0 {
+        let mut padded = vec![0.0; chunk_size];
+
+        padded[..remaining].copy_from_slice(&input[position..]);
+
+        let result = resampler.process(&[padded], None).unwrap();
+
+        output.extend_from_slice(&result[0]);
+
+    }
+
+    output
+}
+
+
 
 fn to_mono(input: &[f32], channels: usize) -> Vec<f32> {
     input
@@ -51,8 +83,8 @@ fn to_mono(input: &[f32], channels: usize) -> Vec<f32> {
         .collect()
 }
 
-fn decode_audio(bytes: &'static [u8]) -> (Vec<f32>, u32, usize) {
-    let cursor = Cursor::new(bytes);
+fn decode_audio(bytes: &[u8]) -> (Vec<f32>, u32, usize) {
+    let cursor = Cursor::new(bytes.to_vec());
     let media_source_stream = MediaSourceStream::new(Box::new(cursor), 
         Default::default());
 
@@ -64,6 +96,7 @@ fn decode_audio(bytes: &'static [u8]) -> (Vec<f32>, u32, usize) {
     let mut samples = Vec::new();
     let sample_rate = track.codec_params.sample_rate.unwrap();
     let channels = track.codec_params.channels.unwrap().count();
+    let track_id = track.id;
 
     loop {
         let packet = match format.next_packet() {
@@ -71,7 +104,12 @@ fn decode_audio(bytes: &'static [u8]) -> (Vec<f32>, u32, usize) {
             Err(_) => break,
         };
 
-        let decoded = decoder.decode(&packet).unwrap();
+        if packet.track_id() != track_id {continue;}
+
+        let decoded = decoder.decode(&packet);
+        if !Result::is_err(&decoded) {continue;}
+        let decoded = decoded.unwrap();
+
         let mut buffer = SampleBuffer::<f32>::new(decoded.capacity() as u64, *decoded.spec());
 
         buffer.copy_interleaved_ref(decoded);
@@ -82,6 +120,7 @@ fn decode_audio(bytes: &'static [u8]) -> (Vec<f32>, u32, usize) {
 
 }
 
+
 fn get_format(media_source_stream: MediaSourceStream) -> Box<dyn FormatReader> {
     let hint = Hint::new();
     let probed = symphonia::default::get_probe()
@@ -90,6 +129,7 @@ fn get_format(media_source_stream: MediaSourceStream) -> Box<dyn FormatReader> {
 
     probed.format
 }
+
 
 fn get_decoder(track: &Track) -> Box<dyn Decoder> {
     symphonia::default::get_codecs()
