@@ -7,9 +7,6 @@ pub struct Fingerprint {
 }
 
 
-/// Generates audio hashes
-/// fan_value: how many peaks to pair
-/// max_time_diff: maximum frames ahead 
 pub fn generate_hashes(peaks: &[(usize, usize)], fan_value: usize, max_time_diff: usize) -> Vec<Fingerprint> {
     let mut fingerprints = Vec::new();
 
@@ -30,15 +27,15 @@ pub fn generate_hashes(peaks: &[(usize, usize)], fan_value: usize, max_time_diff
     fingerprints
 }
 
-pub fn find_peaks(spectogram: Vec<Vec<f32>>, magnitude_threshold: f32) -> Vec<(usize, usize)> {
-    let number_of_frames = spectogram.len();
-    let number_of_bins = spectogram[0].len();
+pub fn find_peaks(spectrogram: Vec<Vec<f32>>, magnitude_threshold: f32) -> Vec<(usize, usize)> {
+    let number_of_frames = spectrogram.len();
+    let number_of_bins = spectrogram[0].len();
 
     let mut peaks = Vec::new();
 
     for t in 1.. number_of_frames-1 {
         for f in 1.. number_of_bins-1 {
-            let val = spectogram[t][f];
+            let val = spectrogram[t][f];
 
             if val < magnitude_threshold {continue;}
 
@@ -47,7 +44,7 @@ pub fn find_peaks(spectogram: Vec<Vec<f32>>, magnitude_threshold: f32) -> Vec<(u
                 for df in -1..=1 {
                     if dt == 0 && df == 0 {continue;}
 
-                    if spectogram[(t as isize + dt) as usize][(f as isize + df) as usize] >= val {
+                    if spectrogram[(t as isize + dt) as usize][(f as isize + df) as usize] >= val {
                         is_peak = false;
                         break;
                     } 
