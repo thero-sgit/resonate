@@ -11,7 +11,12 @@ use symphonia::core::{
 
 
 pub fn ingest(bytes: &[u8]) -> Vec<f32> {
+    println!("bytes: {}", &bytes.len());
     let (samples, rate, channels) = decode_audio(bytes);
+
+    println!("samples: {}", &samples.len());
+    println!("channels: {}", &channels);
+    println!("rate: {}", &rate);
 
     resample(
         &to_mono(&samples, channels),
@@ -107,7 +112,7 @@ fn decode_audio(bytes: &[u8]) -> (Vec<f32>, u32, usize) {
         if packet.track_id() != track_id {continue;}
 
         let decoded = decoder.decode(&packet);
-        if !Result::is_err(&decoded) {continue;}
+        if Result::is_err(&decoded) {continue;}
         let decoded = decoded.unwrap();
 
         let mut buffer = SampleBuffer::<f32>::new(decoded.capacity() as u64, *decoded.spec());

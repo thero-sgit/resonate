@@ -1,13 +1,16 @@
-struct Fingerprint {
-    hash: u64,
-    frame_index: usize
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Fingerprint {
+    pub hash: u64,
+    pub frame_index: usize
 }
 
 
 /// Generates audio hashes
 /// fan_value: how many peaks to pair
 /// max_time_diff: maximum frames ahead 
-fn generate_hashes(peaks: &[(usize, usize)], fan_value: usize, max_time_diff: usize) -> Vec<Fingerprint> {
+pub fn generate_hashes(peaks: &[(usize, usize)], fan_value: usize, max_time_diff: usize) -> Vec<Fingerprint> {
     let mut fingerprints = Vec::new();
 
     for (i, &(t1, f1)) in peaks.iter().enumerate() {
@@ -27,14 +30,14 @@ fn generate_hashes(peaks: &[(usize, usize)], fan_value: usize, max_time_diff: us
     fingerprints
 }
 
-fn find_peaks(spectogram: Vec<Vec<f32>>, magnitude_threshold: f32) -> Vec<(usize, usize)> {
+pub fn find_peaks(spectogram: Vec<Vec<f32>>, magnitude_threshold: f32) -> Vec<(usize, usize)> {
     let number_of_frames = spectogram.len();
     let number_of_bins = spectogram[0].len();
 
     let mut peaks = Vec::new();
 
     for t in 1.. number_of_frames-1 {
-        for f in 1.. number_of_bins {
+        for f in 1.. number_of_bins-1 {
             let val = spectogram[t][f];
 
             if val < magnitude_threshold {continue;}

@@ -1,1 +1,5 @@
 /target
+.env
+assets/
+migrations/
+project.db

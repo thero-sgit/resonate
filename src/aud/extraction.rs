@@ -1,7 +1,7 @@
 use std::{f32::consts::PI};
 use rustfft::{FftPlanner, num_complex::Complex};
 
-fn fft_magnitude(frames: Vec<Vec<f32>>, sample_rate: u32) -> Vec<Vec<f32>> {
+pub fn fft_magnitude(frames: Vec<Vec<f32>>, sample_rate: u32) -> Vec<Vec<f32>> {
     if frames.is_empty() {return vec![];}
 
     let n = frames[0].len();
@@ -26,7 +26,7 @@ fn fft_magnitude(frames: Vec<Vec<f32>>, sample_rate: u32) -> Vec<Vec<f32>> {
     magnitudes_all
 }
 
-fn frame(pcm_buffer: &Vec<f32>) -> Vec<Vec<f32>> {
+pub fn frame(pcm_buffer: &Vec<f32>) -> Vec<Vec<f32>> {
     let frame_size = 1024;
     let hop_size = 512;
 
