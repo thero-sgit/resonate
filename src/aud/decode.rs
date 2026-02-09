@@ -1,4 +1,5 @@
 use std::{io::Cursor};
+use rayon::{iter::ParallelIterator, slice::ParallelSlice};
 use rubato::{Resampler, SincFixedIn, SincInterpolationParameters, WindowFunction};
 use symphonia::core::{
     audio::SampleBuffer,
@@ -11,12 +12,7 @@ use symphonia::core::{
 
 
 pub fn ingest(bytes: &[u8]) -> Vec<f32> {
-    println!("bytes: {}", &bytes.len());
     let (samples, rate, channels) = decode_audio(bytes);
-
-    println!("samples: {}", &samples.len());
-    println!("channels: {}", &channels);
-    println!("rate: {}", &rate);
 
     resample(
         &to_mono(&samples, channels),
@@ -31,59 +27,63 @@ fn resample(input: &[f32], input_rate: u32, output_rate: u32) -> Vec<f32> {
         return input.to_vec();
     }
 
-    let params = SincInterpolationParameters {
-        sinc_len: 128,
-        f_cutoff: 0.95,
-        oversampling_factor: 64,
-        interpolation: rubato::SincInterpolationType::Linear,
-        window: WindowFunction::BlackmanHarris2,
-    };
-
     let chunk_size = 1024;
-
-    let mut resampler = SincFixedIn::<f32>::new(
-        output_rate as f64 / input_rate as f64,
-        2.0,
-        params,
-        chunk_size.clone(),
-        1
-    ).unwrap();
-
-    process(chunk_size, input, &mut resampler)
+    process(chunk_size, input, input_rate, output_rate)
 }
 
-fn process(chunk_size: usize, input: &[f32], resampler: &mut SincFixedIn<f32>) -> Vec<f32> {
-    let mut output = Vec::new();
-    let mut position = 0;
+fn process(chunk_size: usize, input: &[f32], input_rate: u32, output_rate: u32) -> Vec<f32> {
+    let thread_batch_size = chunk_size * 100;
 
-    while position + chunk_size <= input.len() {
-        let chunk = vec![input[position.. position+chunk_size].to_vec()];
-        let result = resampler.process(&chunk, None).unwrap();
+    input
+        .par_chunks(thread_batch_size)
+        .map(|segment| {
+            let params = SincInterpolationParameters {
+                sinc_len: 128,
+                f_cutoff: 0.95,
+                oversampling_factor: 64,
+                interpolation: rubato::SincInterpolationType::Linear,
+                window: WindowFunction::BlackmanHarris2,
+            };
 
-        output.extend_from_slice(&result[0]);
-        position += chunk_size
-    }
+            let mut resampler = SincFixedIn::<f32>::new(
+                output_rate as f64 / input_rate as f64,
+                2.0,
+                params,
+                chunk_size.clone(),
+                1
+            ).unwrap();
 
-    let remaining = input.len() - position;
-    if remaining > 0 {
-        let mut padded = vec![0.0; chunk_size];
+            let mut local_output = Vec::new();
+            let mut position = 0;
+            
+            while position + chunk_size <= segment.len() {
+                let chunk = vec![segment[position.. position + chunk_size].to_vec()];
 
-        padded[..remaining].copy_from_slice(&input[position..]);
+                let result = resampler.process(&chunk, None).unwrap();
 
-        let result = resampler.process(&[padded], None).unwrap();
+                local_output.extend_from_slice(&result[0]);
+                position += chunk_size;
+            }
 
-        output.extend_from_slice(&result[0]);
+            let remaining = segment.len() - position;
+            if remaining > 0 {
+                let mut padded = vec![0.0; chunk_size];
+                padded[..remaining].copy_from_slice(&segment[position..]);
+                let result = resampler.process(&[padded], None).unwrap();
+                local_output.extend_from_slice(&result[0]);
+            }
 
-    }
+            local_output
 
-    output
+        })
+        .flatten()
+        .collect()
 }
-
 
 
 fn to_mono(input: &[f32], channels: usize) -> Vec<f32> {
     input
-        .chunks(channels)
+        .par_chunks(channels)
         .map(|frame| frame.iter().sum::<f32>() / channels as f32)
         .collect()
 }
@@ -112,7 +112,7 @@ fn decode_audio(bytes: &[u8]) -> (Vec<f32>, u32, usize) {
         if packet.track_id() != track_id {continue;}
 
         let decoded = decoder.decode(&packet);
-        if Result::is_err(&decoded) {continue;}
+        if decoded.is_err() {continue;}
         let decoded = decoded.unwrap();
 
         let mut buffer = SampleBuffer::<f32>::new(decoded.capacity() as u64, *decoded.spec());
@@ -120,6 +120,7 @@ fn decode_audio(bytes: &[u8]) -> (Vec<f32>, u32, usize) {
         buffer.copy_interleaved_ref(decoded);
         samples.extend_from_slice(buffer.samples());
     }
+
 
     (samples, sample_rate, channels)
 

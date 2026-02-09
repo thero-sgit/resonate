@@ -1,15 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Fingerprint {
     pub hash: u64,
     pub frame_index: usize
 }
 
-
-/// Generates audio hashes
-/// fan_value: how many peaks to pair
-/// max_time_diff: maximum frames ahead 
 pub fn generate_hashes(peaks: &[(usize, usize)], fan_value: usize, max_time_diff: usize) -> Vec<Fingerprint> {
     let mut fingerprints = Vec::new();
 
