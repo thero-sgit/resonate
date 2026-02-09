@@ -1,0 +1,35 @@
+# Rust build artifacts
+target/
+**/target/
+
+# Git
+.git
+.gitignore
+
+# Cargo local config
+.cargo/
+
+# OS / Editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Environment / secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Test Dirs
+assets/
+migrations/
+project.db
+
+# Logs
+*.log
+
+# Docker files (optional, depends on workflow)
+Dockerfile
+docker-compose.yml

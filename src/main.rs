@@ -1,16 +1,19 @@
-use std::fs;
+use axum::Router;
+use axum::routing::{get, post};
 
-
-use crate::{aud::{fingerprints, hashing::Fingerprint}};
-
-mod aud;
+mod fingerprint;
+mod routes;
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
-    let song = "assets/Isibusiso_10s_Snippet.mp3";
-    let audio_bytes = fs::read(song).unwrap();
+    tracing_subscriber::fmt::init();
 
-    let _fingerprints: Vec<Fingerprint> = fingerprints(audio_bytes);
+    let app = Router::new()
+        .route("/fingerprint", post(routes::fingerprint))
+        .route("/health", get(|| async { "healthy" }));
 
-    Ok(())  
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }
