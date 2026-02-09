@@ -1,8 +1,15 @@
+//! Hash generation and peak-finding used to create compact fingerprints.
+//!
+//! The hashing strategy pairs spectral peaks and encodes frequency/time deltas
+//! into a 64-bit value that can be stored or compared later.
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Fingerprint {
+    /// Compact 64-bit hash representing paired spectral peaks.
     pub hash: u64,
+    /// Index of the frame where the anchor peak was found.
     pub frame_index: usize
 }
 

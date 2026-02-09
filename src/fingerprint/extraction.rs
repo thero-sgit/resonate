@@ -1,14 +1,22 @@
-use std::{f32::consts::PI};
+//! Spectral extraction helpers.
+//!
+//! Provides framing, windowing and FFT magnitude computation used by the
+//! fingerprinting pipeline.
+
+use std::f32::consts::PI;
 use rustfft::{FftPlanner, num_complex::Complex};
 use rayon::prelude::*;
 
+/// Compute FFT magnitude spectra for each frame in `frames`.
+///
+/// Returns a vector of magnitude vectors (only the first `n/2` bins).
 pub fn fft_magnitude(frames: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
     if frames.is_empty() {return vec![];}
 
     let n = frames[0].len();
     let mut planner = FftPlanner::<f32>::new();
     let fft = planner.plan_fft_forward(n);
-    
+
     let frames = frames
         .into_par_iter()
         .map(|frame| {
@@ -26,6 +34,9 @@ pub fn fft_magnitude(frames: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
     frames
 }
 
+/// Split a PCM buffer into overlapping frames and apply a Hann window.
+///
+/// Uses a fixed `frame_size` of 1024 and `hop_size` of 512.
 pub fn frame(pcm_buffer: &Vec<f32>) -> Vec<Vec<f32>> {
     let frame_size = 1024;
     let hop_size = 512;
