@@ -8,6 +8,7 @@ use axum::routing::{get, post};
 
 mod fingerprint;
 mod routes;
+mod streaming;
 
 /// Application entrypoint. Binds to `0.0.0.0:8080` and serves routes.
 #[tokio::main]
