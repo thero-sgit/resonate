@@ -21,8 +21,10 @@ tracing = "0.1"
 tracing-subscriber = "0.3.22"
 anyhow = "1.0.101"
 
-rdkafka = { version = "0.36", features = ["tokio"] }
+rdkafka = { version = "0.39.0", features = ["tokio"] }
 futures = "0.3"
 aws-config = "1"
 aws-sdk-s3 = "1"
 chrono = "0.4.43"
+bytes = "1.11.1"
+async-trait = "0.1.89"

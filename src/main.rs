@@ -5,7 +5,7 @@
 
 use aws_config::BehaviorVersion;
 use rdkafka::consumer::Consumer;
-use crate::streaming::{create_consumer, create_producer, run_kafka_worker};
+use crate::streaming::{create_consumer, create_producer, run_kafka_worker, KafkaProducer};
 
 mod fingerprint;
 mod server;
@@ -26,7 +26,9 @@ async fn main() -> anyhow::Result<()> {
     let consumer = create_consumer(&brokers, "fingerprint-group");
     consumer.subscribe(&["song_uploaded"])?;
 
-    let producer = create_producer(&brokers);
+    let producer = KafkaProducer {
+        inner: create_producer(&brokers)
+    };
 
     // spawn kafka worker
     let kafka_handle = tokio::spawn(run_kafka_worker(
