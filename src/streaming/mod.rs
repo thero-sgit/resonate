@@ -1,66 +1,14 @@
-use std::str::Bytes;
+pub mod models;
+
+use crate::fingerprint::fingerprint_pipeline;
+use crate::streaming::models::{EventProducer, FingerprintGenerated, SongUploaded};
 use futures::StreamExt;
 use rdkafka::{
-    ClientConfig,
-    consumer::{Consumer, StreamConsumer},
+    consumer::StreamConsumer,
     message::Message,
-    producer::{FutureProducer, FutureRecord},
+    producer::FutureProducer,
+    ClientConfig,
 };
-use std::time::Duration;
-use serde::{Deserialize, Serialize};
-use crate::fingerprint::fingerprint_pipeline;
-use crate::fingerprint::hashing::Fingerprint;
-
-#[derive(Deserialize)]
-struct SongUploaded {
-    song_id: String,
-    s3_key: String,
-    uploaded_at: i64,
-}
-
-#[derive(Serialize, Deserialize)]
-struct FingerprintGenerated {
-    song_id: String,
-    fingerprints: Vec<Fingerprint>,
-    generated_at: i64,
-}
-
-#[async_trait::async_trait]
-pub trait EventProducer {
-    async fn send(
-        &self,
-        topic: &str,
-        key: &str,
-        payload: String,
-    ) -> anyhow::Result<()>;
-}
-
-pub struct KafkaProducer {
-    pub inner: FutureProducer,
-}
-
-#[async_trait::async_trait]
-impl EventProducer for KafkaProducer {
-    async fn send(
-        &self,
-        topic: &str,
-        key: &str,
-        payload: String,
-    ) -> anyhow::Result<()> {
-        self.inner
-            .send(
-                FutureRecord::to(topic)
-                    .key(key)
-                    .payload(&payload),
-                Duration::from_secs(0),
-            )
-            .await
-            .map_err(|(e, _)| anyhow::anyhow!(e))?;
-
-        Ok(())
-    }
-}
-
 
 pub fn create_consumer(brokers: &str, group_id: &str) -> StreamConsumer {
     ClientConfig::new()
@@ -166,8 +114,8 @@ impl EventProducer for MockProducer {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
     use super::*;
+    use std::fs;
     use tokio;
 
     #[tokio::test]
@@ -184,7 +132,7 @@ mod tests {
         };
 
         // use small dummy audio input
-        let audio = fs::read("assets/fma_small/000/000002.mp3").unwrap();
+        let audio = fs::read("../../assets/fma_small/000/000002.mp3").unwrap();
 
         // act
         process_event(

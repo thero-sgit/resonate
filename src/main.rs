@@ -2,10 +2,10 @@
 //!
 //! The binary provides a minimal Axum-based API that accepts audio uploads
 //! and returns generated fingerprints.
-
 use aws_config::BehaviorVersion;
 use rdkafka::consumer::Consumer;
-use crate::streaming::{create_consumer, create_producer, run_kafka_worker, KafkaProducer};
+use crate::streaming::{create_consumer, create_producer, run_kafka_worker};
+use crate::streaming::models::KafkaProducer;
 
 mod fingerprint;
 mod server;
