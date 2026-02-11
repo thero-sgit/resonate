@@ -25,3 +25,4 @@ rdkafka = { version = "0.36", features = ["tokio"] }
 futures = "0.3"
 aws-config = "1"
 aws-sdk-s3 = "1"
+chrono = "0.4.43"

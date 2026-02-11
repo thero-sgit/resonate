@@ -14,7 +14,7 @@ mod extraction;
 pub mod hashing;
 
 /// Run the end-to-end fingerprint pipeline on raw audio bytes.
-pub fn pipeline(audio_bytes: Vec<u8>) -> Vec<Fingerprint> {
+pub fn fingerprint_pipeline(audio_bytes: Vec<u8>) -> Vec<Fingerprint> {
     let pcm_buffer: Vec<f32> = ingest(&audio_bytes);
     let frames: Vec<Vec<f32>> = frame(&pcm_buffer);
     let magnitudes = fft_magnitude(frames);

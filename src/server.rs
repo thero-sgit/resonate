@@ -4,23 +4,30 @@
 //! fingerprint results.
 
 use axum::extract::Multipart;
-use axum::Json;
+use axum::{Json, Router};
+use axum::routing::{get, post};
 use serde::Serialize;
 use crate::fingerprint::hashing::Fingerprint;
-use crate::fingerprint::pipeline;
+use crate::fingerprint::fingerprint_pipeline;
 
 #[derive(Serialize)]
 /// JSON response for the `/fingerprint` endpoint.
-pub struct FingerprintResponse {
+pub struct LookupResponse {
     fingerprints: Vec<Fingerprint>,
+}
+
+pub fn router() -> Router {
+    Router::new()
+        .route("/fingerprint", post(lookup))
+        .route("/health", get(|| async { "healthy" }))
 }
 
 /// Handle multipart uploads and return generated fingerprints as JSON.
 ///
 /// Expects a form field named `file` containing the audio payload.
-pub async fn fingerprint(
+async fn lookup(
     mut audio: Multipart,
-) -> Result<Json<FingerprintResponse>, axum::http::StatusCode> {
+) -> Result<Json<LookupResponse>, axum::http::StatusCode> {
 
     let mut audio_bytes = Vec::new();
 
@@ -33,10 +40,10 @@ pub async fn fingerprint(
     }
 
     let hashes = tokio::task::spawn_blocking(move || {
-        pipeline(audio_bytes)
+        fingerprint_pipeline(audio_bytes)
     })
         .await
         .unwrap();
 
-    Ok(Json(FingerprintResponse {fingerprints: hashes}))
+    Ok(Json(LookupResponse {fingerprints: hashes}))
 }
