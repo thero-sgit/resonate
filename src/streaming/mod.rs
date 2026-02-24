@@ -132,7 +132,7 @@ mod tests {
         };
 
         // use small dummy audio input
-        let audio = fs::read("../../assets/fma_small/000/000002.mp3").unwrap();
+        let audio = fs::read("assets/fma_small/000/000002.mp3").unwrap();
 
         // act
         process_event(
