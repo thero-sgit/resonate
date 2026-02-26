@@ -95,7 +95,7 @@ async fn test_s3local_stack_starts() {
 }
 
 #[tokio::test]
-async fn test_s3_uploads() {
+async fn test_s3_upload_exists() {
     let env = get_env().await;
 
     let object = env.aws_client
