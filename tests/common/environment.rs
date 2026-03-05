@@ -113,7 +113,7 @@ impl Environment {
             .create()
             .expect("AdminClient creation failed!");
 
-        let topics: Vec<NewTopic> = ["song_uploaded", "fingerprint_generated"]
+        let topics: Vec<NewTopic> = ["song_uploaded", "fingerprint_generated", "fingerprint_chunk"]
             .iter()
             .map(| topic | NewTopic::new(topic, 3, TopicReplication::Fixed(1)))
             .collect();

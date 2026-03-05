@@ -25,7 +25,7 @@ impl SongUploaded {
 #[derive(Serialize, Deserialize)]
 pub struct FingerprintGenerated {
     pub song_id: String,
-    pub fingerprints: Vec<Fingerprint>,
+    pub total_chunks: usize,
 }
 
 #[async_trait::async_trait]
