@@ -86,12 +86,22 @@ async fn process_event<P: EventProducer>(
         .collect();
 
     // Produce result event
-    let event = FingerprintGenerated {
+    let fingerprint_generated_event = FingerprintGenerated {
         song_id: event.song_id.clone(),
         total_chunks: chunks.len(),
     };
 
-    send_fingerprint_chunks(producer, event, chunks).await;
+    let payload = serde_json::to_string(&fingerprint_generated_event)?;
+
+    let sent = send_fingerprint_chunks(producer, fingerprint_generated_event, chunks).await;
+
+    if Some(sent).is_some() {
+        producer.send(
+            "fingerprint_generated",
+            &event.song_id,
+            payload
+        ).await?;
+    }
 
     Ok(())
 }
@@ -100,7 +110,7 @@ async fn send_fingerprint_chunks<P: EventProducer>(
     producer: &mut P,
     event: FingerprintGenerated,
     chunks: Vec<&[Fingerprint]>,
-) {
+) -> anyhow::Result<()> {
     let song_id = event.song_id.clone();
 
     for (index, chuck) in chunks.iter().enumerate() {
@@ -110,7 +120,7 @@ async fn send_fingerprint_chunks<P: EventProducer>(
             data: chuck.to_vec()
         };
 
-        let payload = serde_json::to_string(&fingerprint_chunk).unwrap();
+        let payload = serde_json::to_string(&fingerprint_chunk)?;
 
         producer.send(
             "fingerprint_chunk",
@@ -118,6 +128,8 @@ async fn send_fingerprint_chunks<P: EventProducer>(
             payload,
         ).await.expect("Failed to send fingerprint_chunk");
     }
+
+    Ok(())
 
 }
 

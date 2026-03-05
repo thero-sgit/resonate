@@ -1,10 +1,8 @@
 use std::time::Duration;
-use futures::StreamExt;
-use rdkafka::Message;
 use rdkafka::consumer::Consumer;
 use rdkafka::producer::future_producer::Delivery;
 use resonate::streaming::{create_consumer, create_producer, run_kafka_worker};
-use resonate::streaming::models::{FingerprintGenerated, KafkaProducer};
+use resonate::streaming::models::KafkaProducer;
 use common::get_env;
 
 mod common;
@@ -36,23 +34,15 @@ async fn test_end_to_end_kafka_worker() {
         .expect("Error while sending message");
 
     // test
-    let mut stream = env.orchestrator.consumer.stream();
-    println!("Waiting for event..");
-
+    
     // avoid hanging forever by imposing a generous overall timeout; the
     // fingerprinting duration is irrelevant, we just don't want the test
     // suite to stall indefinitely if the worker panics or never produces.
-    let result = tokio::time::timeout(Duration::from_secs(30), async {
-        while let Some(message) = stream.next().await {
-            if let Ok(m) = message {
-                if let Some(payload) = m.payload() {
-                    let event: FingerprintGenerated = serde_json::from_slice(payload).unwrap();
-                    return Some(event);
-                }
-            }
+    let result = tokio::time::timeout(
+        Duration::from_secs(30), async {
+            return Some(env.orchestrator.receive().await);
         }
-        None
-    })
+    )
     .await;
 
     // check worker for errors, using select to race the worker check with message wait
@@ -73,5 +63,6 @@ async fn test_end_to_end_kafka_worker() {
 
     let timeout_result = result.expect("timeout waiting for fingerprint_generated event");
     let event = timeout_result.expect("did not receive fingerprint_generated event");
-    assert_eq!("test-song-id", event.song_id);
+    assert_eq!("test-song-id", event.event.song_id);
+    assert_eq!(event.event.total_chunks as u64, event.chucks.len() as u64);
 }

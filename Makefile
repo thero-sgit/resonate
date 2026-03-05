@@ -1,4 +1,4 @@
 .PHONY: run-integration-tests
 
 run-integration-tests:
-	cargo test --test "*"
+	cargo test --test "*" -- --nocapture

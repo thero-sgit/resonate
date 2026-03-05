@@ -80,11 +80,13 @@ impl Orchestrator {
                 let chunk: FingerprintChunk = serde_json::from_slice(record).unwrap();
 
                 if chunk.song_id == event_song_id {
+                    println!("collecting chunk: {}", chunk.song_id);
                     buffer.push(chunk);
                 }
 
                 // check if we have all chunks
                 if buffer.len() == total_chunks {
+                    println!("done collecting chunks!");
                     buffer.sort_by_key(|chunk| chunk.index);
                     break;
                 }
@@ -92,6 +94,7 @@ impl Orchestrator {
             }
         }
 
+        println!("returning chunks!");
         buffer
     }
 }
