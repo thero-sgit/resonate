@@ -34,8 +34,8 @@ async fn main() -> anyhow::Result<()> {
     let kafka_handle = tokio::spawn(run_kafka_worker(
         consumer,
         producer,
-        s3_client.clone(),
-        s3_bucket.clone(),
+        s3_client,
+        s3_bucket,
     ));
 
     // http server

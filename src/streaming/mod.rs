@@ -23,14 +23,18 @@ pub fn create_consumer(brokers: &str, group_id: &str) -> StreamConsumer {
 pub fn create_producer(brokers: &str) -> FutureProducer {
     ClientConfig::new()
         .set("bootstrap.servers", brokers)
+        .set("compression.type", "gzip")  // Enable gzip compression for better compression
+        .set("linger.ms", "50")  // Batch messages for better compression
         .create()
         .expect("Producer creation failed")
 }
 
 pub async fn run_kafka_worker<P: EventProducer>(
     consumer: StreamConsumer,
-    producer: P,
+    mut producer: P,
     s3: aws_sdk_s3::Client,
+    // actual bucket name (not an env var key). the caller should read any
+    // environment variable and pass the resulting string.
     bucket: String,
 ) -> anyhow::Result<()> {
 
@@ -45,7 +49,7 @@ pub async fn run_kafka_worker<P: EventProducer>(
                 // Download from S3
                 let obj = s3
                     .get_object()
-                    .bucket(std::env::var(&bucket)?)
+                    .bucket(&bucket)
                     .key(&event.s3_key)
                     .send()
                     .await?;
@@ -54,7 +58,7 @@ pub async fn run_kafka_worker<P: EventProducer>(
 
                 process_event(
                     event,
-                    &producer,
+                    &mut producer,
                     data
                 ).await?;
             }
@@ -66,7 +70,7 @@ pub async fn run_kafka_worker<P: EventProducer>(
 
 async fn process_event<P: EventProducer>(
     event: SongUploaded,
-    producer: &P,
+    producer: &mut P,
     data: Vec<u8>,
 ) -> anyhow::Result<()> {
     // Fingerprint
@@ -79,7 +83,6 @@ async fn process_event<P: EventProducer>(
     let output = FingerprintGenerated {
         song_id: event.song_id.clone(),
         fingerprints,
-        generated_at: chrono::Utc::now().timestamp(),
     };
 
     let payload = serde_json::to_string(&output)?;
@@ -94,6 +97,10 @@ async fn process_event<P: EventProducer>(
     Ok(())
 }
 
+async fn send_fingerprint_chunks() {
+    
+}
+
 // Testing
 pub struct MockProducer {
     pub messages: std::sync::Mutex<Vec<String>>,
@@ -102,7 +109,7 @@ pub struct MockProducer {
 #[async_trait::async_trait]
 impl EventProducer for MockProducer {
     async fn send(
-        &self,
+        &mut self,
         _topic: &str,
         _key: &str,
         payload: String,
@@ -121,14 +128,13 @@ mod tests {
     #[tokio::test]
     async fn test_process_event_produces_fingerprint_event() {
         // set up
-        let mock = MockProducer {
+        let mut mock = MockProducer {
             messages: std::sync::Mutex::new(vec![]),
         };
 
         let event = SongUploaded {
             song_id: "test123".into(),
             s3_key: "dummy".into(),
-            uploaded_at: 0,
         };
 
         // use small dummy audio input
@@ -137,7 +143,7 @@ mod tests {
         // act
         process_event(
             event,
-            &mock,
+            &mut mock,
             audio
         ).await.unwrap();
 

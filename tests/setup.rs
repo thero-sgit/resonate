@@ -1,24 +1,12 @@
-use std::sync::OnceLock;
 use std::time::Duration;
 use aws_sdk_s3::config::http::HttpResponse;
 use aws_sdk_s3::error::SdkError;
 use aws_sdk_s3::operation::list_buckets::{ListBucketsError, ListBucketsOutput};
 use rdkafka::ClientConfig;
 use rdkafka::consumer::{BaseConsumer, Consumer};
-use crate::environment::Environment;
+use common::get_env;
 
-mod environment;
-
-pub(crate) static SHARED_ENV: OnceLock<Environment> = OnceLock::new();
-
-async fn get_env() -> &'static Environment {
-    if let Some(env) =  SHARED_ENV.get() {
-        return env;
-    }
-
-    let env = Environment::init().await;
-    SHARED_ENV.get_or_init(|| env)
-}
+mod common;
 
 #[tokio::test]
 async fn test_s3local_stack_starts() {
@@ -57,21 +45,10 @@ async fn test_s3_upload_exists() {
 #[tokio::test]
 async fn test_kafka_connection() {
     let env = get_env().await;
-    let node = &env.kafka_node;
-
-    let host = node.get_host()
-        .await
-        .expect("Failed to get host");
-
-    let port = node.get_host_port_ipv4(9092)
-        .await
-        .expect("Failed to get port");
-
-    let bootstrap_servers = format!("{}:{}", host, port);
 
     // set up config
     let mut client_config = ClientConfig::new();
-    client_config.set("bootstrap.servers", &bootstrap_servers);
+    client_config.set("bootstrap.servers", &env.bootstrap_servers);
     client_config.set("client.id", "connection-test");
     client_config.set("metadata.request.timeout.ms", "5000");
 
