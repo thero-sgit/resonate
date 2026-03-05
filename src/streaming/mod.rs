@@ -1,7 +1,7 @@
 pub mod models;
 
 use crate::fingerprint::fingerprint_pipeline;
-use crate::streaming::models::{EventProducer, FingerprintGenerated, SongUploaded};
+use crate::streaming::models::{EventProducer, FingerprintChunk, FingerprintGenerated, SongUploaded};
 use futures::StreamExt;
 use rdkafka::{
     consumer::StreamConsumer,
@@ -9,6 +9,7 @@ use rdkafka::{
     producer::FutureProducer,
     ClientConfig,
 };
+use crate::fingerprint::hashing::Fingerprint;
 
 pub fn create_consumer(brokers: &str, group_id: &str) -> StreamConsumer {
     ClientConfig::new()
@@ -80,25 +81,43 @@ async fn process_event<P: EventProducer>(
         .await?;
 
     // Produce result event
-    let output = FingerprintGenerated {
+    let data = FingerprintGenerated {
         song_id: event.song_id.clone(),
         fingerprints,
     };
 
-    let payload = serde_json::to_string(&output)?;
-
-    producer.send(
-        "fingerprint_generated",
-        &event.song_id,
-        payload,
-    )
-        .await?;
+    send_fingerprint_chunks(producer, data, 1000).await;
 
     Ok(())
 }
 
-async fn send_fingerprint_chunks() {
-    
+async fn send_fingerprint_chunks<P: EventProducer>(
+    producer: &mut P,
+    generated_fingerprint: FingerprintGenerated,
+    chunk_size: usize,
+) {
+    let song_id = generated_fingerprint.song_id.clone();
+    let chunks: Vec<&[Fingerprint]> = generated_fingerprint
+        .fingerprints
+        .chunks(chunk_size)
+        .collect();
+
+    for (index, chuck) in chunks.iter().enumerate() {
+        let fingerprint_chunk = FingerprintChunk {
+            song_id: song_id.clone(),
+            index: index as u32,
+            data: chuck.to_vec()
+        };
+
+        let payload = serde_json::to_string(&fingerprint_chunk).unwrap();
+
+        producer.send(
+            "fingerprint_chunk",
+            &song_id,
+            payload,
+        ).await.expect("Failed to send fingerprint_chunk");
+    }
+
 }
 
 // Testing

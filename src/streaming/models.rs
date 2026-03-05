@@ -65,8 +65,8 @@ impl EventProducer for KafkaProducer {
 }
 
 #[derive(Deserialize, Serialize)]
-struct FingerprintChunk {
+pub struct FingerprintChunk {
     pub song_id: String,
     pub index: u32,
-    pub fingerprints: Vec<Fingerprint>,
+    pub data: Vec<Fingerprint>,
 }
