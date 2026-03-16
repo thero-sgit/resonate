@@ -34,10 +34,6 @@ async fn test_end_to_end_kafka_worker() {
         .expect("Error while sending message");
 
     // test
-    
-    // avoid hanging forever by imposing a generous overall timeout; the
-    // fingerprinting duration is irrelevant, we just don't want the test
-    // suite to stall indefinitely if the worker panics or never produces.
     let result = tokio::time::timeout(
         Duration::from_secs(30), async {
             return Some(env.orchestrator.receive().await);
