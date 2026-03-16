@@ -10,7 +10,7 @@ RUN apk add --no-cache \
     g++ \
     librdkafka-dev \
     cyrus-sasl-dev \
-    zlib-dev \
+    zlib-dev
 
 WORKDIR /app
 COPY . .
