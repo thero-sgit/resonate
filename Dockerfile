@@ -14,13 +14,11 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 COPY . .
-
-RUN rustup target add x86_64-unknown-musl
-RUN cargo build --release --target x86_64-unknown-musl
+RUN cargo build --release --target x86_64-unknown-linux-musl
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
-COPY --from=builder /app/target/x86_64-unknown-musl/release/resonate ./resonate
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/resonate ./resonate
 EXPOSE 8080
 CMD ["./resonate"]
