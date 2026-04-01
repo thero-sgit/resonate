@@ -51,7 +51,11 @@ async fn main() -> anyhow::Result<()> {
     let brokers = std::env::var("KAFKA_BROKERS")?;
     let s3_bucket = std::env::var("S3_BUCKET")?;
 
-    let aws_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let mut config_loader = aws_config::load_defaults(BehaviorVersion::latest());
+    if let Ok(endpoint) = std::env::var("AWS_ENDPOINT_URL") {
+        config_loader = config_loader.endpoint_url(endpoint);
+    }
+    let aws_config = config_loader.await;
     let s3_client = aws_sdk_s3::Client::new(&aws_config);
 
     let consumer = create_consumer(&brokers, "fingerprint-group");
