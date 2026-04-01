@@ -25,7 +25,7 @@
 //! - rdkafka for Kafka integration
 //! - AWS SDK for S3 access
 
-use aws_config::BehaviorVersion;
+use aws_config::{BehaviorVersion};
 use rdkafka::consumer::Consumer;
 use crate::streaming::{create_consumer, create_producer, run_kafka_worker};
 use crate::streaming::models::KafkaProducer;
@@ -47,16 +47,29 @@ mod streaming;
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    // kafka setup
+    // mandatory Application Variables
     let brokers = std::env::var("KAFKA_BROKERS")?;
     let s3_bucket = std::env::var("S3_BUCKET")?;
 
-    let mut config_loader = aws_config::load_defaults(BehaviorVersion::latest());
-    if let Ok(endpoint) = std::env::var("AWS_ENDPOINT_URL") {
-        config_loader = config_loader.endpoint_url(endpoint);
+    // initialize the AWS Loader
+    // It will AUTOMATICALLY look for AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+    // and AWS_REGION. If it doesn't find them, it moves to IAM Roles (EC2).
+    let mut loader = aws_config::defaults(BehaviorVersion::latest());
+
+
+    if let Ok(url) = std::env::var("AWS_ENDPOINT_URL") {
+        loader = loader.endpoint_url(url);
     }
-    let aws_config = config_loader.await;
-    let s3_client = aws_sdk_s3::Client::new(&aws_config);
+
+    let config = loader.load().await;
+    let mut s3_config_builder = aws_sdk_s3::config::Builder::from(&config);
+
+    // force Path Style
+    if std::env::var("AWS_ENDPOINT_URL").is_ok() {
+        s3_config_builder = s3_config_builder.force_path_style(true);
+    }
+
+    let client = aws_sdk_s3::Client::from_conf(s3_config_builder.build());
 
     let consumer = create_consumer(&brokers, "fingerprint-group");
     consumer.subscribe(&["song_uploaded"])?;
@@ -69,7 +82,7 @@ async fn main() -> anyhow::Result<()> {
     let kafka_handle = tokio::spawn(run_kafka_worker(
         consumer,
         producer,
-        s3_client,
+        client,
         s3_bucket,
     ));
 
