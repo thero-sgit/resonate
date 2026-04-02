@@ -2479,6 +2479,7 @@ dependencies = [
  "symphonia",
  "testcontainers-modules",
  "tokio",
+ "tracing",
  "tracing-subscriber",
 ]
 

@@ -122,24 +122,39 @@ pub async fn run_kafka_worker<P: EventProducer>(
     while let Some(message) = stream.next().await {
         if let Ok(msg) = message {
             if let Some(payload) = msg.payload() {
-                let event: SongUploaded =
-                    serde_json::from_slice(payload)?;
+                let event: SongUploaded = match serde_json::from_slice(payload) {
+                    Ok(e) => e,
+                    Err(e) => {
+                        tracing::error!("Failed to deserialize event: {:?}", e);
+                        continue;
+                    }
+                };
 
-                // Download from S3
-                let obj = s3
+                let obj = match s3
                     .get_object()
                     .bucket(&bucket)
                     .key(&event.s3_key)
                     .send()
-                    .await?;
+                    .await
+                {
+                    Ok(o) => o,
+                    Err(e) => {
+                        tracing::error!("Failed to get object from S3: {:?}", e);
+                        continue;
+                    }
+                };
 
-                let data = obj.body.collect().await?.into_bytes().to_vec();
+                let data = match obj.body.collect().await {
+                    Ok(d) => d.into_bytes().to_vec(),
+                    Err(e) => {
+                        tracing::error!("Failed to read S3 body: {:?}", e);
+                        continue;
+                    }
+                };
 
-                process_event(
-                    event,
-                    &mut producer,
-                    data
-                ).await?;
+                if let Err(e) = process_event(event, &mut producer, data).await {
+                    tracing::error!("Failed to process event: {:?}", e);
+                }
             }
         }
     }
